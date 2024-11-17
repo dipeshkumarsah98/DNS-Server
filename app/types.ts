@@ -23,3 +23,9 @@ export interface Question {
   type: number;
   class: number;
 }
+
+export interface Answer extends Question {
+  ttl: number;
+  rdLength: number;
+  rData: string;
+}

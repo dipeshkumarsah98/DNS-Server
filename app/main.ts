@@ -1,5 +1,5 @@
 import * as dgram from "dgram";
-import { PacketType, Question } from "./types";
+import { PacketType, Question, Answer } from "./types";
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log("Logs from your program will appear here!");
@@ -36,8 +36,19 @@ udpSocket.on("message", (data: Buffer, remoteAddr: dgram.RemoteInfo) => {
       },
     ]);
 
+    const answer = encodeAnswer([
+      {
+        class: 1,
+        name: "codecrafters.io",
+        type: 1,
+        rData: "\x08\x08\x08\x08",
+        rdLength: 4,
+        ttl: 60,
+      },
+    ]);
+
     const headerData: PacketType = {
-      packet_id: 1223,
+      packet_id: 1234,
       qr: 1,
       opCode: 0,
       aa: 0,
@@ -47,13 +58,13 @@ udpSocket.on("message", (data: Buffer, remoteAddr: dgram.RemoteInfo) => {
       z: 0,
       rcode: 0,
       qdcount: 1,
-      ancount: 0,
+      ancount: 1,
       nscount: 0,
       arcount: 0,
     };
 
     const header = encodePacket(headerData);
-    const res = Buffer.concat([header, question]);
+    const res = Buffer.concat([header, question, answer]);
 
     udpSocket.send(res, remoteAddr.port, remoteAddr.address);
   } catch (e) {
@@ -127,6 +138,28 @@ function encodeQuestion(questions: Question[]) {
   );
 }
 
-function decodePacket(question: Question) {
-  console.log("🚀 ~ decodePacket ~ question:", question.name.split("."));
+function encodeAnswer(answers: Answer[]) {
+  return Buffer.concat(
+    answers.map((answer) => {
+      const { class: c, name, rData, rdLength, ttl, type } = answer;
+
+      const str = name
+        .split(",")
+        .map((n) => `${String.fromCharCode(n.length)}${n}`)
+        .join("");
+
+      const typeAndClass = Buffer.alloc(10);
+
+      typeAndClass.writeUint16BE(type, 0);
+      typeAndClass.writeUint16BE(c, 2);
+      typeAndClass.writeUint16BE(ttl, 4);
+      typeAndClass.writeUint16BE(rdLength, 2);
+
+      return Buffer.concat([
+        Buffer.from(str + "\0", "binary"),
+        typeAndClass,
+        Buffer.from(rData + "\0", "binary"),
+      ]);
+    })
+  );
 }
