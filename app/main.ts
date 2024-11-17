@@ -1,5 +1,5 @@
 import * as dgram from "dgram";
-import { PacketType } from "./types";
+import { PacketType, Question } from "./types";
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log("Logs from your program will appear here!");
@@ -28,8 +28,16 @@ udpSocket.on("message", (data: Buffer, remoteAddr: dgram.RemoteInfo) => {
 
     console.log(`[${new Date().toISOString()}] Data: ${data.toString("hex")}`);
 
-    const header: PacketType = {
-      packet_id: 1234,
+    const question = encodeQuestion([
+      {
+        class: 1,
+        name: "codecrafters.io",
+        type: 1,
+      },
+    ]);
+
+    const headerData: PacketType = {
+      packet_id: 1223,
       qr: 1,
       opCode: 0,
       aa: 0,
@@ -38,15 +46,16 @@ udpSocket.on("message", (data: Buffer, remoteAddr: dgram.RemoteInfo) => {
       ra: 0,
       z: 0,
       rcode: 0,
-      qdcode: 0,
-      ancode: 0,
-      nscode: 0,
+      qdcount: 1,
+      ancount: 0,
+      nscount: 0,
       arcount: 0,
     };
 
-    const response = encodePacket(header);
+    const header = encodePacket(headerData);
+    const res = Buffer.concat([header, question]);
 
-    udpSocket.send(response, remoteAddr.port, remoteAddr.address);
+    udpSocket.send(res, remoteAddr.port, remoteAddr.address);
   } catch (e) {
     console.log(`Error sending data: ${e}`);
   }
@@ -82,13 +91,13 @@ function encodePacket(packet: PacketType): Buffer {
   buffer.writeUInt16BE(flags, offset);
 
   offset += 2;
-  buffer.writeUInt16BE(packet.qdcode, offset);
+  buffer.writeUInt16BE(packet.qdcount, offset);
 
   offset += 2;
-  buffer.writeUint16BE(packet.ancode, offset);
+  buffer.writeUint16BE(packet.ancount, offset);
 
   offset += 2;
-  buffer.writeUint16BE(packet.nscode, offset);
+  buffer.writeUint16BE(packet.nscount, offset);
 
   offset += 2;
 
@@ -96,4 +105,28 @@ function encodePacket(packet: PacketType): Buffer {
   offset += 2;
 
   return buffer;
+}
+
+function encodeQuestion(questions: Question[]) {
+  return Buffer.concat(
+    questions.map((question) => {
+      const { name, type, class: c } = question;
+
+      const str = name
+        .split(",")
+        .map((n) => `${String.fromCharCode(n.length)}${n}`)
+        .join("");
+
+      const typeAndClass = Buffer.alloc(4);
+
+      typeAndClass.writeUint16BE(type, 0);
+      typeAndClass.writeUint16BE(c, 2);
+
+      return Buffer.concat([Buffer.from(str + "\0"), typeAndClass]);
+    })
+  );
+}
+
+function decodePacket(question: Question) {
+  console.log("🚀 ~ decodePacket ~ question:", question.name.split("."));
 }

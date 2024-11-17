@@ -11,8 +11,15 @@ export interface PacketType {
   ra: number; // Recursion Available
   z: number; // Reserved
   rcode: number; // Response code
-  qdcode: number; // Question count
-  ancode: number; // Answer count
-  nscode: number; // Authority count
+  qdcount: number; // Question count
+  ancount: number; // Answer count
+  nscount: number; // Authority count
   arcount: number; // additional count
+  question?: Question;
+}
+
+export interface Question {
+  name: string;
+  type: number;
+  class: number;
 }
